@@ -163,8 +163,8 @@ MonoBehaviour:
   lacunarity: 2
   stoneHeightThreshold: 0.6
   blendRange: 0.05
-  numberOfTrees: 1000
-  numberOfGrass: 50000
+  numberOfTrees: 5000
+  numberOfGrass: 100000
   minTreeHeight: 1
 --- !u!154 &319814967
 TerrainCollider:

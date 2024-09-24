@@ -55,7 +55,7 @@ public class Generator : MonoBehaviour
         terrainData.SetHeights(0, 0, heights);
 
         PaintTerrain();
-        PlaceVegetation();
+        StartCoroutine(PlaceVegetationAsync());
     }
     float FractalNoise(float x, float y, int octaves, float persistence, float lacunarity)
     {
@@ -98,7 +98,7 @@ public class Generator : MonoBehaviour
                 int terrainZ = Mathf.FloorToInt((float)z / alphaMapHeight * terrainData.heightmapResolution);
 
                 // Получаем высоту в нормализованном виде (от 0 до 1)
-                float height = heights[terrainX, terrainZ];
+                float height = heights[terrainZ, terrainX];
 
                 // Определяем вес текстур травы и камня на основе высоты и blendRange
                 float stoneWeight = Mathf.InverseLerp(stoneHeightThreshold - blendRange, stoneHeightThreshold + blendRange, height);
@@ -127,41 +127,66 @@ public class Generator : MonoBehaviour
     }
 
     // Метод для размещения деревьев и травы
-    void PlaceVegetation()
+    IEnumerator PlaceVegetationAsync()
     {
         ClearTerrainVegetation();
         TerrainData terrainData = terrain.terrainData;
 
-        // Получаем размер альфамапы
-        int alphaMapWidth = terrainData.alphamapWidth;
-        int alphaMapHeight = terrainData.alphamapHeight;
+        float[,,] alphaMaps = terrainData.GetAlphamaps(0, 0, terrainData.alphamapWidth, terrainData.alphamapHeight);
 
-        // Получаем альфамапы
-        float[,,] alphaMaps = terrainData.GetAlphamaps(0, 0, alphaMapWidth, alphaMapHeight);
+        List<TreeInstance> trees = new List<TreeInstance>();
+        int[][,] grassLayers = new int[terrainData.detailPrototypes.Length][,];
+        for (int i = 0; i < grassLayers.Length; i++)
+        {
+            grassLayers[i] = new int[terrainData.detailWidth, terrainData.detailHeight];
+        }
+        //int[,] grassLayer =
 
-        // Размещение деревьев
+        // Генерация деревьев
         for (int i = 0; i < numberOfTrees; i++)
         {
             Vector3 treePosition = GetRandomPositionOnGrass(alphaMaps, terrainData);
             if (treePosition != Vector3.zero)
             {
-                PlaceTree(treePosition);
+                TreeInstance treeInstance = CreateTreeInstance(treePosition);
+                trees.Add(treeInstance);
+            }
+
+            if (i % 100 == 0)
+            {
+                yield return null;  // Ждём следующий кадр
             }
         }
 
-        // Размещение травы
+        // Применение деревьев разом
+        terrainData.treeInstances = trees.ToArray();
+
+        // Генерация травы
         for (int i = 0; i < numberOfGrass; i++)
         {
             Vector3 grassPosition = GetRandomPositionOnGrass(alphaMaps, terrainData);
-            
             if (grassPosition != Vector3.zero)
             {
-                PlaceGrass(grassPosition);
+                int detailX = Mathf.FloorToInt((grassPosition.x / terrainData.size.x) * terrainData.detailWidth);
+                int detailZ = Mathf.FloorToInt((grassPosition.z / terrainData.size.z) * terrainData.detailHeight);
+                int layer = Random.Range(0, grassLayers.Length);
+                grassLayers[layer][detailZ, detailX] = 1;
+            }
+
+            if (i % 1000 == 0)
+            {
+                yield return null;  // Ждём следующий кадр
             }
         }
+        for (int i = 0; i < grassLayers.Length; i++)
+        {
+            terrainData.SetDetailLayer(0, 0, i, grassLayers[i]);
+        }
+        // Применение травы разом
+        //terrainData.SetDetailLayer(0, 0, 10, grassLayer);
+        //terrainData.SetDetailLayer(0, 0, 0, grassLayer);
     }
 
-    // Метод для получения случайной позиции на текстуре травы
     Vector3 GetRandomPositionOnGrass(float[,,] alphaMaps, TerrainData terrainData)
     {
         int alphaMapWidth = terrainData.alphamapWidth;
@@ -171,12 +196,16 @@ public class Generator : MonoBehaviour
         int x = Random.Range(0, alphaMapWidth);
         int z = Random.Range(0, alphaMapHeight);
 
-        // Проверяем, что текстура в этом месте не каменная (индекс 1)
-        float grassWeight = alphaMaps[z, x, grassTextureIndex];  // Индекс 0 — трава
-        float stoneWeight = alphaMaps[z, x, stoneTextureIndex];  // Индекс 1 — камень
+        // Получаем вес текстур травы и камня
+        float grassWeight = alphaMaps[z, x, grassTextureIndex];  // Индекс 1 — трава
+        float stoneWeight = alphaMaps[z, x, stoneTextureIndex];  // Индекс 5 — камень
 
-        // Если основная текстура — трава (grassWeight больше, чем stoneWeight)
-        if (grassWeight > stoneWeight)
+        // Устанавливаем пороги для текстур
+        float grassThreshold = 0.7f;  // Минимальный вес для травы
+        float stoneThreshold = 0.1f;   // Максимальный вес для камня
+
+        // Проверяем, что вес травы достаточно высок, а вес камня достаточно низок
+        if (grassWeight > grassThreshold && stoneWeight < stoneThreshold)
         {
             // Преобразуем координаты альфамапы в мировые координаты террейна
             float worldPosX = (float)x / alphaMapWidth * terrainData.size.x;
@@ -188,16 +217,16 @@ public class Generator : MonoBehaviour
             return new Vector3(worldPosX, worldPosY, worldPosZ);
         }
 
-        return Vector3.zero; // Если трава не найдена на случайной позиции, возвращаем (0,0,0)
+        // Если траву не удалось разместить, возвращаем (0,0,0)
+        return GetRandomPositionOnGrass(alphaMaps, terrainData);
     }
 
-    // Метод для размещения дерева
-    void PlaceTree(Vector3 position)
+
+    TreeInstance CreateTreeInstance(Vector3 position)
     {
-        // Получаем случайный тип дерева, зарегистрированный в террейне
         int randomTreeIndex = Random.Range(0, terrain.terrainData.treePrototypes.Length);
 
-        TreeInstance treeInstance = new TreeInstance
+        return new TreeInstance
         {
             position = new Vector3(position.x / terrain.terrainData.size.x, position.y / terrain.terrainData.size.y, position.z / terrain.terrainData.size.z),
             prototypeIndex = randomTreeIndex,
@@ -206,29 +235,6 @@ public class Generator : MonoBehaviour
             color = Color.white,
             lightmapColor = Color.white
         };
-
-        // Добавляем дерево в террейн
-        terrain.AddTreeInstance(treeInstance);
-    }
-
-    // Метод для размещения травы
-    void PlaceGrass(Vector3 position)
-    {
-        TerrainData terrainData = terrain.terrainData;
-
-        // Преобразуем мировые координаты в координаты текстуры
-        int detailX = Mathf.FloorToInt((position.x / terrainData.size.x) * terrainData.detailWidth);
-        int detailZ = Mathf.FloorToInt((position.z / terrainData.size.z) * terrainData.detailHeight);
-
-        // Получаем текущие значения слоя травы для нужного индекса травы
-        int randomGrassIndex = Random.Range(0, terrainData.detailPrototypes.Length);
-        int[,] details = terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, randomGrassIndex);
-
-        // Увеличиваем количество травы в нужной позиции
-        details[detailX, detailZ] = 1; // Устанавливаем 1 травинку
-
-        // Применяем изменения слоя травы
-        terrainData.SetDetailLayer(0, 0, randomGrassIndex, details);
     }
 }
 
