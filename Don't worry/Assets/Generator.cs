@@ -5,6 +5,7 @@ using UnityEngine;
 public class Generator : MonoBehaviour
 {
     public Terrain terrain;
+    TerrainCollider terrainCollider;
     public int terrainWidth = 512;
     public int terrainHeight = 512;
     public float noiseScale = 20f;
@@ -25,17 +26,19 @@ public class Generator : MonoBehaviour
 
     void Start()
     {
-        GenerateTerrain();
+        terrainCollider = terrain.gameObject.GetComponent<TerrainCollider>();
+        StartCoroutine(GenerateTerrain());
     }
+    
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.R))
         {
-            GenerateTerrain();
+            StartCoroutine(GenerateTerrain());
             
         }
     }
-    void GenerateTerrain()
+    IEnumerator GenerateTerrain()
     {
         TerrainData terrainData = terrain.terrainData;
         float[,] heights = new float[terrainWidth, terrainHeight];
@@ -55,7 +58,10 @@ public class Generator : MonoBehaviour
         terrainData.SetHeights(0, 0, heights);
 
         PaintTerrain();
-        StartCoroutine(PlaceVegetationAsync());
+        yield return StartCoroutine(PlaceVegetationAsync());
+        if (terrainCollider.enabled) { terrainCollider.enabled = false; }
+        terrainCollider.enabled = true;
+
     }
     float FractalNoise(float x, float y, int octaves, float persistence, float lacunarity)
     {
@@ -160,7 +166,7 @@ public class Generator : MonoBehaviour
 
         // Применение деревьев разом
         terrainData.treeInstances = trees.ToArray();
-
+        
         // Генерация травы
         for (int i = 0; i < numberOfGrass; i++)
         {
