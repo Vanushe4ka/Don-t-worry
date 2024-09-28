@@ -4,8 +4,10 @@ using UnityEngine;
 
 public class Generator : MonoBehaviour
 {
+    [SerializeField] Player player;
     public Terrain terrain;
     TerrainCollider terrainCollider;
+    [SerializeField] PathGenerator pathGenerator;
     public int terrainWidth = 512;
     public int terrainHeight = 512;
     public float noiseScale = 20f;
@@ -23,23 +25,30 @@ public class Generator : MonoBehaviour
 
     private const int grassTextureIndex = 1;
     private const int stoneTextureIndex = 5;
+    private const int pathTextureIndex = 4;
 
+    public Coroutine GenerateCorutine;
+    public float lineWidth;
     void Start()
     {
         terrainCollider = terrain.gameObject.GetComponent<TerrainCollider>();
-        StartCoroutine(GenerateTerrain());
+        GenerateCorutine = StartCoroutine(GenerateTerrain());
+
+        pathGenerator.GeneratePath();
     }
     
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.R))
         {
-            StartCoroutine(GenerateTerrain());
-            
+            GenerateCorutine = StartCoroutine(GenerateTerrain());
+
+           
         }
     }
-    IEnumerator GenerateTerrain()
+    public IEnumerator GenerateTerrain()
     {
+        player.transform.position = new Vector3(terrain.terrainData.size.x / 2, 50, terrain.terrainData.size.z / 2);
         TerrainData terrainData = terrain.terrainData;
         float[,] heights = new float[terrainWidth, terrainHeight];
         Vector2Int generationShift = new Vector2Int(Random.Range(-1000, 1000), Random.Range(-1000, 1000));
@@ -56,7 +65,7 @@ public class Generator : MonoBehaviour
         terrainData.heightmapResolution = terrainWidth + 1;
         terrainData.size = new Vector3(terrainWidth, 50, terrainHeight);
         terrainData.SetHeights(0, 0, heights);
-
+        pathGenerator.GeneratePath();
         PaintTerrain();
         yield return StartCoroutine(PlaceVegetationAsync());
         if (terrainCollider.enabled) { terrainCollider.enabled = false; }
@@ -115,11 +124,66 @@ public class Generator : MonoBehaviour
                 alphaMap[z, x, stoneTextureIndex] = stoneWeight;
             }
         }
+        List<Node> nodes = pathGenerator.nodes;
+        List<Node> checkedNodes = new List<Node>();
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            for (int j = 0; j < nodes[i].connectedNodes.Count; j++)
+            {
+                if (!checkedNodes.Contains(nodes[i].connectedNodes[j]))
+                {
+                    DrawLineOnTerrain(nodes[i].pos, nodes[i].connectedNodes[j].pos, alphaMap, alphaMapWidth, alphaMapHeight);
+
+                }
+                checkedNodes.Add(nodes[i]);
+            }
+        }
 
         // Применяем изменённые альфамапы
         terrainData.SetAlphamaps(0, 0, alphaMap);
     }
-    void ClearTerrainVegetation()
+    public void DrawLineOnTerrain(Vector2 p1, Vector2 p2, float[,,] alphaMap, int alphaMapWidth, int alphaMapHeight)
+    {
+        Vector2Int p1Int = new Vector2Int(Mathf.RoundToInt(p1.x), Mathf.RoundToInt(p1.y));
+        Vector2Int p2Int = new Vector2Int(Mathf.RoundToInt(p2.x), Mathf.RoundToInt(p2.y));
+        float distance = Vector2.Distance(p1, p2);
+        TerrainData terrainData = terrain.terrainData;
+        float[,] heights = terrainData.GetHeights(0, 0, terrainData.heightmapResolution, terrainData.heightmapResolution);
+        for (int i = 0; i < Mathf.RoundToInt(distance); i++)
+        {
+            float t = (float)i / distance;
+            int x = Mathf.RoundToInt(Mathf.Lerp(p1.x, p2.x, t));
+            int y = Mathf.RoundToInt(Mathf.Lerp(p1.y, p2.y, t));
+
+            DrawPointOnTerrain(new Vector2Int(x, y), lineWidth, alphaMap, alphaMapWidth, alphaMapHeight);
+        }
+    }
+    private void DrawPointOnTerrain(Vector2Int point, float lineWidth, float[,,] alphaMap, int alphaMapWidth, int alphaMapHeight)
+    {
+        // Преобразуем мировые координаты в координаты альфамапы
+        int x = Mathf.FloorToInt(point.x / terrain.terrainData.size.x * alphaMapWidth);
+        int z = Mathf.FloorToInt(point.y / terrain.terrainData.size.z * alphaMapHeight);
+
+        // Ограничиваем координаты альфамапы
+        x = Mathf.Clamp(x, 0, alphaMapWidth - 1);
+        z = Mathf.Clamp(z, 0, alphaMapHeight - 1);
+
+        // Устанавливаем максимальное альфа-значение для текстур в пределах ширины линии
+        int halfWidth = Mathf.FloorToInt(lineWidth / 2);
+
+        for (int i = -halfWidth; i <= halfWidth; i++)
+        {
+            // Проверяем границы
+            int currentX = Mathf.Clamp(x + i, 0, alphaMapWidth - 1);
+            int currentZ = Mathf.Clamp(z, 0, alphaMapHeight - 1);
+
+            // Устанавливаем альфа-значение для выбранного текстурного слоя (трава и камень)
+            alphaMap[currentZ, currentX, grassTextureIndex] = 0; // Устанавливаем траву на 0 для линии
+            alphaMap[currentZ, currentX, stoneTextureIndex] = 0; // Устанавливаем камень на 0 для линии
+            alphaMap[currentZ, currentX, pathTextureIndex] = 1; // Устанавливаем камень на 0 для линии
+        }
+    }
+        void ClearTerrainVegetation()
     {
         // Очищаем деревья
         terrain.terrainData.treeInstances = new TreeInstance[0];

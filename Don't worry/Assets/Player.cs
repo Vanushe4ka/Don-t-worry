@@ -19,19 +19,22 @@ public class Player : MonoBehaviour
     private float xRotation = 0f;
 
     [Header("Audio Settings")]
-    public AudioClip walkSound;
-    public AudioClip jumpSound;
-    public AudioClip falledSound;
-    public AudioClip fatigueSound;
-    public AudioSource walkAudioSource;
-    public AudioSource jumpAudioSource;
-    public AudioSource fatigueAudioSource; // Отдельный источник для звука усталости
-    public float runPitchMultiplier = 1.5f; // Ускорение звука бега
-    public float runVolumeMultiplier = 1.2f; // Увеличение громкости звука бега
+    [SerializeField] AudioClip walkSound;
+    [SerializeField] AudioClip jumpSound;
+    [SerializeField] AudioClip falledSound;
+    [SerializeField] AudioClip fatigueSound;
+    [SerializeField] AudioSource walkAudioSource;
+    [SerializeField] AudioSource jumpAudioSource;
+    [SerializeField] AudioSource fatigueAudioSource; // Отдельный источник для звука усталости
+    [SerializeField] float runPitchMultiplier = 1.5f; // Ускорение звука бега
+    [SerializeField] float runVolumeMultiplier = 1.2f; // Увеличение громкости звука бега
+    [SerializeField] float jumpSoundVolume;
+    [SerializeField] float fallSoundVolume;
 
     private Rigidbody rb;
     private Vector3 movement;
     [SerializeField] bool isGrounded = false;
+    float timeInFall = 0;
     
     [SerializeField] float stamina;
     private bool isRunning = false;
@@ -81,11 +84,13 @@ public class Player : MonoBehaviour
 
     private void HandleMovement()
     {
+        
         // Проверка на землю
         bool prevIsGrounded = isGrounded;
         isGrounded = Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundMask);
         if (!prevIsGrounded && isGrounded)
         {
+            jumpAudioSource.volume = timeInFall * fallSoundVolume;
             jumpAudioSource.PlayOneShot(falledSound);
         }
 
@@ -101,7 +106,16 @@ public class Player : MonoBehaviour
             jumpRequest = false;
 
             // Проигрывание звука прыжка
+            jumpAudioSource.volume = jumpSoundVolume;
             jumpAudioSource.PlayOneShot(jumpSound);
+        }
+        if (isGrounded)
+        {
+            timeInFall = 0;
+        }
+        else
+        {
+            timeInFall += Time.fixedDeltaTime;
         }
     }
 

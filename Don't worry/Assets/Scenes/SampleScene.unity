@@ -135,6 +135,7 @@ GameObject:
   - component: {fileID: 319814968}
   - component: {fileID: 319814967}
   - component: {fileID: 319814966}
+  - component: {fileID: 319814970}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -154,7 +155,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29e87062427c7dc4e816052711734592, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: {fileID: 1624071575}
   terrain: {fileID: 319814968}
+  pathGenerator: {fileID: 319814970}
   terrainWidth: 512
   terrainHeight: 512
   noiseScale: 100
@@ -164,8 +167,9 @@ MonoBehaviour:
   stoneHeightThreshold: 0.6
   blendRange: 0.05
   numberOfTrees: 5000
-  numberOfGrass: 100000
+  numberOfGrass: 50000
   minTreeHeight: 1
+  lineWidth: 3
 --- !u!154 &319814967
 TerrainCollider:
   m_ObjectHideFlags: 0
@@ -226,6 +230,27 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &319814970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 319814965}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c0188a42878e6247a8521a4ead98554, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  terrain: {fileID: 319814968}
+  generator: {fileID: 319814966}
+  minPathLength: 1200
+  minLeafNodes: 3
+  maxLeafNodes: 4
+  maxDistanceBetweenNodes: 70
+  minDistanceBetweenNodes: 30
+  maxHeightInTerrain: 0.7
+  minAngleBetweenConnections: 45
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -255,7 +280,7 @@ Light:
   m_Type: 1
   m_Shape: 0
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
-  m_Intensity: 0.2
+  m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -403,6 +428,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1624071579}
   m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1094909872
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1094909873}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1094909873
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1094909872}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 266.28564, y: -334.4994, z: 324.06}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1624071571
 GameObject:
@@ -660,7 +716,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1
   playerCamera: {fileID: 963194228}
-  mouseSensitivity: 100
+  mouseSensitivity: 250
   walkSound: {fileID: 8300000, guid: 9ac3beee4902dc340b6d7c8c419c3f64, type: 3}
   jumpSound: {fileID: 8300000, guid: abdc935329d564e419523729efaa8c53, type: 3}
   falledSound: {fileID: 8300000, guid: 068f833d6bb26c540acc1e7a08e7d96c, type: 3}
@@ -670,6 +726,8 @@ MonoBehaviour:
   fatigueAudioSource: {fileID: 1624071573}
   runPitchMultiplier: 1.5
   runVolumeMultiplier: 1.2
+  jumpSoundVolume: 0
+  fallSoundVolume: 0
   isGrounded: 0
   stamina: 100
 --- !u!136 &1624071576
