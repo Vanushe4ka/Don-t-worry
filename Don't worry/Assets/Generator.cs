@@ -29,22 +29,33 @@ public class Generator : MonoBehaviour
 
     public Coroutine GenerateCorutine;
     public float lineWidth;
+
+    public Grib[] gribPrefabs;
+    List<GameObject> spawnedGribs = new List<GameObject>();
+    public int[] gribsToGenerateQuantity;
     void Start()
     {
         terrainCollider = terrain.gameObject.GetComponent<TerrainCollider>();
-        GenerateCorutine = StartCoroutine(GenerateTerrain());
+        //GenerateCorutine = StartCoroutine(GenerateTerrain());
 
-        pathGenerator.GeneratePath();
     }
-    
-    private void Update()
+    public void QuitGame()
     {
-        if (Input.GetKeyDown(KeyCode.R))
+        Application.Quit();
+    }
+    public void Regenerate()
+    {
+        for (int i = 0; i < spawnedGribs.Count; i++)
         {
-            GenerateCorutine = StartCoroutine(GenerateTerrain());
-
-           
+            if (spawnedGribs[i] != null) { Destroy(spawnedGribs[i]); }
         }
+        spawnedGribs.Clear();
+        for (int i = 0; i < gribsToGenerateQuantity.Length; i++)
+        {
+            gribsToGenerateQuantity[i] = Random.Range(gribsToGenerateQuantity[i] / 2, gribsToGenerateQuantity[i]);
+        }
+        GenerateCorutine = StartCoroutine(GenerateTerrain());
+        player.StartGame();
     }
     public IEnumerator GenerateTerrain()
     {
@@ -65,7 +76,7 @@ public class Generator : MonoBehaviour
         terrainData.heightmapResolution = terrainWidth + 1;
         terrainData.size = new Vector3(terrainWidth, 50, terrainHeight);
         terrainData.SetHeights(0, 0, heights);
-        pathGenerator.GeneratePath();
+        pathGenerator.GeneratePath(terrainData);
         PaintTerrain();
         yield return StartCoroutine(PlaceVegetationAsync());
         if (terrainCollider.enabled) { terrainCollider.enabled = false; }
@@ -183,7 +194,7 @@ public class Generator : MonoBehaviour
             alphaMap[currentZ, currentX, pathTextureIndex] = 1; // Устанавливаем камень на 0 для линии
         }
     }
-        void ClearTerrainVegetation()
+    void ClearTerrainVegetation()
     {
         // Очищаем деревья
         terrain.terrainData.treeInstances = new TreeInstance[0];
@@ -252,11 +263,28 @@ public class Generator : MonoBehaviour
         {
             terrainData.SetDetailLayer(0, 0, i, grassLayers[i]);
         }
-        // Применение травы разом
-        //terrainData.SetDetailLayer(0, 0, 10, grassLayer);
-        //terrainData.SetDetailLayer(0, 0, 0, grassLayer);
-    }
 
+        for (int i = 0; i < gribsToGenerateQuantity.Length; i++)
+        {
+            for (int j = 0; j < gribsToGenerateQuantity[i]; j++)
+            {
+                Vector2 randomization = new Vector2(Random.Range(-1, 1f), Random.Range(-1, 1f));
+                Vector2 posInTerrain = randomization + pathGenerator.RandomPointOnPath();
+                spawnedGribs.Add(Instantiate(gribPrefabs[i].gameObject, new Vector3(posInTerrain.x, terrain.terrainData.GetHeight((int)posInTerrain.x, (int)posInTerrain.y), posInTerrain.y), Quaternion.Euler(0, 0, 0)));
+            }
+        }
+        SetTargetInventoryToPlayer();
+
+    }
+    void SetTargetInventoryToPlayer()
+    {
+        List<(string, int)> targetInventory = new List<(string, int)>();
+        for (int i = 0; i < gribsToGenerateQuantity.Length; i++)
+        {
+            if (!gribPrefabs[i].isPoisonous) targetInventory.Add((gribPrefabs[i].Name,gribsToGenerateQuantity[i]));
+        }
+        player.SetTargetInventory(targetInventory.ToArray());
+    }
     Vector3 GetRandomPositionOnGrass(float[,,] alphaMaps, TerrainData terrainData)
     {
         int alphaMapWidth = terrainData.alphamapWidth;

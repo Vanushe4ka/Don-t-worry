@@ -7,6 +7,7 @@ public class PathGenerator : MonoBehaviour
    
     // Start is called before the first frame update
     [SerializeField] Terrain terrain;
+    [SerializeField] TerrainData terrainData;
     [SerializeField] Generator generator;
     [SerializeField] int minPathLength;
     float pathLength;
@@ -55,13 +56,12 @@ public class PathGenerator : MonoBehaviour
     }
     bool CreateStartNode()
     {
-        TerrainData terrainData = terrain.terrainData;
         float[,] heights = terrainData.GetHeights(0, 0, terrainData.heightmapResolution, terrainData.heightmapResolution);
-        if (heights[Mathf.RoundToInt(terrain.terrainData.size.z / 2),Mathf.RoundToInt(terrain.terrainData.size.x / 2)] > generator.stoneHeightThreshold - generator.blendRange)
+        if (heights[Mathf.RoundToInt(terrainData.size.z / 2),Mathf.RoundToInt(terrainData.size.x / 2)] > generator.stoneHeightThreshold - generator.blendRange)
         {
             return false;
         }
-        nodes.Add(new Node(new Vector2(terrain.terrainData.size.x/2,terrain.terrainData.size.z/2)));
+        nodes.Add(new Node(new Vector2(terrainData.size.x/2,terrainData.size.z/2)));
         return true;
     }
     void CreateNode(Node parent)
@@ -75,7 +75,7 @@ public class PathGenerator : MonoBehaviour
         // Вычисляем координаты новой точки
         float offsetX = parent.pos.x + Mathf.Cos(angle) * distance;
         float offsetY = parent.pos.y + Mathf.Sin(angle) * distance;
-        if (offsetX > terrain.terrainData.size.x || offsetY > terrain.terrainData.size.z) { return; }
+        if (offsetX > terrainData.size.x || offsetY >terrainData.size.z || offsetX < 0 || offsetY < 0) { return; }
 
         Vector2 nodePos = new Vector2(offsetX, offsetY);
         if (isHaveMontainsOnLine(parent.pos, nodePos)) { return; }
@@ -144,7 +144,7 @@ public class PathGenerator : MonoBehaviour
         Vector2Int p1Int = new Vector2Int(Mathf.RoundToInt(p1.x), Mathf.RoundToInt(p1.y));
         Vector2Int p2Int = new Vector2Int(Mathf.RoundToInt(p2.x), Mathf.RoundToInt(p2.y));
         float distance = Vector2.Distance(p1,p2);
-        TerrainData terrainData = terrain.terrainData;
+        
         float[,] heights = terrainData.GetHeights(0, 0, terrainData.heightmapResolution, terrainData.heightmapResolution);
         for (int i = 0; i < Mathf.RoundToInt(distance); i++)
         {
@@ -324,9 +324,19 @@ public class PathGenerator : MonoBehaviour
         }
     }
 
-   
-    public void GeneratePath()
+    public Vector2 RandomPointOnPath()
     {
+        Node first = nodes[Random.Range(0, nodes.Count)];
+        Node second = first.connectedNodes[Random.Range(0, first.connectedNodes.Count)];
+        float t = Random.Range(0, 1f);
+        return Vector2.Lerp(first.pos, second.pos, t);
+    }
+   
+    public void GeneratePath(TerrainData TD)
+    {
+        terrainData = TD;
+        nodes.Clear();
+        pathLength = 0;
         if (!CreateStartNode())
         {
             if (generator.GenerateCorutine != null) { StopCoroutine(generator.GenerateCorutine); }
