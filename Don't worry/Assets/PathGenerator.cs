@@ -75,7 +75,10 @@ public class PathGenerator : MonoBehaviour
         // Вычисляем координаты новой точки
         float offsetX = parent.pos.x + Mathf.Cos(angle) * distance;
         float offsetY = parent.pos.y + Mathf.Sin(angle) * distance;
-        if (offsetX > terrainData.size.x || offsetY >terrainData.size.z || offsetX < 0 || offsetY < 0) { return; }
+        float circleShiftX = terrainData.size.x - generator.minDistanceToStartCircle*2;
+        float circleShiftY = terrainData.size.z - generator.minDistanceToStartCircle*2;
+        if (offsetX > terrainData.size.x - circleShiftX || offsetY >terrainData.size.z - circleShiftY || 
+            offsetX < circleShiftX || offsetY < circleShiftY) { return; }
 
         Vector2 nodePos = new Vector2(offsetX, offsetY);
         if (isHaveMontainsOnLine(parent.pos, nodePos)) { return; }

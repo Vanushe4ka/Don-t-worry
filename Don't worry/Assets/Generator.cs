@@ -33,6 +33,10 @@ public class Generator : MonoBehaviour
     public Grib[] gribPrefabs;
     List<GameObject> spawnedGribs = new List<GameObject>();
     public int[] gribsToGenerateQuantity;
+
+    public int minDistanceToStartCircle;
+    public int maxDistanceToStartCircle;
+    public float mountainCoef;
     void Start()
     {
         terrainCollider = terrain.gameObject.GetComponent<TerrainCollider>();
@@ -78,6 +82,7 @@ public class Generator : MonoBehaviour
         terrainData.SetHeights(0, 0, heights);
         pathGenerator.GeneratePath(terrainData);
         PaintTerrain();
+        DrawHeightsMountainsCircle(heights);
         yield return StartCoroutine(PlaceVegetationAsync());
         if (terrainCollider.enabled) { terrainCollider.enabled = false; }
         terrainCollider.enabled = true;
@@ -149,7 +154,7 @@ public class Generator : MonoBehaviour
                 checkedNodes.Add(nodes[i]);
             }
         }
-
+        alphaMap = DrawTextureMountainsCircle(alphaMap);
         // Применяем изменённые альфамапы
         terrainData.SetAlphamaps(0, 0, alphaMap);
     }
@@ -189,10 +194,44 @@ public class Generator : MonoBehaviour
             int currentZ = Mathf.Clamp(z, 0, alphaMapHeight - 1);
 
             // Устанавливаем альфа-значение для выбранного текстурного слоя (трава и камень)
-            alphaMap[currentZ, currentX, grassTextureIndex] = 0; // Устанавливаем траву на 0 для линии
-            alphaMap[currentZ, currentX, stoneTextureIndex] = 0; // Устанавливаем камень на 0 для линии
-            alphaMap[currentZ, currentX, pathTextureIndex] = 1; // Устанавливаем камень на 0 для линии
+            alphaMap[currentZ, currentX, grassTextureIndex] = 0;
+            alphaMap[currentZ, currentX, stoneTextureIndex] = 0; 
+            alphaMap[currentZ, currentX, pathTextureIndex] = 1; 
         }
+    }
+    private void DrawHeightsMountainsCircle(float[,] heights)
+    {
+        Vector2 center = new Vector2(terrainWidth / 2, terrainHeight / 2);
+        for (int x = 0; x < terrainWidth; x++)
+        {
+            for (int y = 0; y < terrainHeight; y++)
+            {
+                float distance = Vector2.Distance(center, new Vector2(x, y));
+                if (distance > minDistanceToStartCircle && distance < maxDistanceToStartCircle)
+                {
+                    heights[x, y] = heights[x, y] + ((distance - minDistanceToStartCircle)/(maxDistanceToStartCircle - minDistanceToStartCircle)) * mountainCoef;
+                }
+            }
+        }
+        terrain.terrainData.SetHeights(0, 0, heights);
+    }
+    private float[,,] DrawTextureMountainsCircle(float[,,] alphaMap)
+    {
+        Vector2 center = new Vector2(terrainWidth / 2, terrainHeight / 2);
+        for (int x = 0; x < terrainWidth; x++)
+        {
+            for (int y = 0; y < terrainHeight; y++)
+            {
+                float distance = Vector2.Distance(center, new Vector2(x, y));
+                if (distance > minDistanceToStartCircle && distance < maxDistanceToStartCircle)
+                {
+                    alphaMap[x, y, grassTextureIndex] = 0;
+                    alphaMap[y, x, pathTextureIndex] = 0;
+                    alphaMap[y, x, stoneTextureIndex] = 1;
+                }
+            }
+        }
+        return alphaMap;
     }
     void ClearTerrainVegetation()
     {

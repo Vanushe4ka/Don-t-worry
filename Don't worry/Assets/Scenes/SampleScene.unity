@@ -525,6 +525,9 @@ MonoBehaviour:
   - {fileID: 5073839685600224963, guid: b41ef6b0fcdee1c4b9e62aa1102626d7, type: 3}
   - {fileID: 2716798353006081189, guid: 274150b4a05bdb341a0750e256824f7d, type: 3}
   gribsToGenerateQuantity: 0a0000000f000000080000000a0000000a000000
+  minDistanceToStartCircle: 230
+  maxDistanceToStartCircle: 256
+  mountainCoef: 0.5
 --- !u!154 &319814967
 TerrainCollider:
   m_ObjectHideFlags: 0
